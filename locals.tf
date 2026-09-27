@@ -44,16 +44,16 @@ locals {
       RUN_PROFILE      = var.profile
       TARGET_URL       = "${var.target.scheme}://${var.target.host}"
       TARGET_HOST      = var.target.host
-      VUS              = tostring(var.load.vus)
-      DURATION_SECONDS = tostring(var.load.duration_seconds)
+      DURATION_SECONDS = tostring(var.run.expected_duration_seconds)
       CLIENT_ID_HEADER = var.client_identity.header
       CLIENT_ID_MODE   = var.client_identity.mode
       RUN_TAGS         = join(",", [for k, v in var.tags : "${k}=${v}"])
     },
-    # Resolve the ingress by IP while still sending the real Host and SNI, so the run
-    # traverses the real ingress route without depending on public DNS.
+    # Absent for runs where concurrency is meaningless, e.g. a browser suite.
     var.run.concurrency == null ? {} : { CONCURRENCY = tostring(var.run.concurrency) },
     var.artifacts.claim_name == null ? {} : { ARTIFACTS_DIR = var.artifacts.mount_path },
+    # Resolve the ingress by IP while still sending the real Host and SNI, so the run
+    # traverses the real ingress route without depending on public DNS.
     var.target.address == null ? {} : { TARGET_ADDRESS = var.target.address },
     var.metrics.prometheus_remote_write_url == null ? {} : {
       # Tool-NEUTRAL names. The block declares WHERE results go; each runner image's
