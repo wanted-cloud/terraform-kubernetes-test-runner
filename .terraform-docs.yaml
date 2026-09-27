@@ -12,6 +12,7 @@ content: |-
   - [Variables](#inputs)
   - [Outputs](#outputs)
   - [Resources](#resources)
+  - [Design notes](#design-notes)
   - [Usage](#usage)
   - [Contributing](#contributing)
 
@@ -25,33 +26,73 @@ content: |-
 
   {{ .Resources }}
 
-  ## Usage
-  
-  > For more detailed examples navigate to `examples` folder of this repository.
+  ## Design notes
 
-  Module was also published via Terraform Registry and can be used as a module from the registry.
+  ### Why a CronJob and not a Job
+
+  A Job is immutable, so any change to the pod spec forces replacement. Under Terraform that
+  means `terraform apply` would destroy the completed Job and create a new one — an apply on
+  unrelated infrastructure would **fire a load test**. With `wait_for_completion` it would
+  also block the apply for the run's duration and fail an infrastructure apply on a
+  threshold breach. A CronJob is a durable description of *how* to run: applying it twice
+  does not run it twice, and firing is decoupled from apply.
+
+  ### On-demand is a suspended CronJob
+
+  With `schedule = null` the CronJob is created suspended, with a cron expression
+  (`0 0 31 2 *`) that parses but can never occur. Both belt and braces: the impossible date
+  states the intent in the manifest, and `suspend` means un-suspending by hand does not
+  silently arm a schedule nobody chose. Instantiate a run from the stored spec with the
+  command exported as `fire_command`.
+
+  The consequence worth knowing: on-demand and scheduled runs share ONE spec, so a run fired
+  by hand is provably the same run as a scheduled one.
+
+  ### Retries are off by default
+
+  `backoff_limit` defaults to `0`. Retrying a load test doubles the load applied to the
+  target and yields a second, contaminated result for the same run — and a threshold breach
+  is a finding, not a transient error to paper over.
+
+  ### The run deadline is mandatory, and computed
+
+  `active_deadline_seconds` is derived from `load.duration_seconds` rather than left to the
+  caller, because with `concurrency_policy = "Forbid"` a single hung run blocks **every**
+  later run indefinitely.
+
+  ### What this block does not own
+
+  No namespace, no ServiceAccount, no NetworkPolicy. A namespace is created by whatever owns
+  the estate's workloads; a ServiceAccount's identity half belongs to the identity domain;
+  and network policy is platform-owned. They are inputs.
+
+  ### Timeouts
+
+  The kubernetes provider exposes no `timeouts` block on `kubernetes_cron_job_v1`, so the
+  framework's per-resource timeout convention does not apply. `active_deadline_seconds` is
+  the bound that matters here.
+
+  ## Usage
+
+  > For more detailed examples navigate to the `examples` folder of this repository.
 
   ```hcl
-  module "example" {
-    source  = "wanted-cloud/..."
+  module "load_generator" {
+    source  = "wanted-cloud/load-generator/kubernetes"
     version = "x.y.z"
   }
   ```
 
   ### Basic usage example
 
-  The minimal usage for the module is as follows:
-
   ```hcl
   {{ include "./examples/base/main.tf" }}
   ```
   ## Contributing
 
-  _Contributions are welcomed and must follow [Code of Conduct](https://github.com/wanted-cloud/.github?tab=coc-ov-file) and common [Contributions guidelines](https://github.com/wanted-cloud/.github/blob/main/docs/CONTRIBUTING.md)._
-
-  > If you'd like to report security issue please follow [security guidelines](https://github.com/wanted-cloud/.github?tab=security-ov-file).
+  _Contributions follow the common [Contributions guidelines](https://github.com/wanted-cloud/.github/blob/main/docs/CONTRIBUTING.md)._
   ---
-  <sup><sub>_2025 &copy; All rights reserved - WANTED.solutions s.r.o._</sub></sup>
+  <sup><sub>_2026 &copy; All rights reserved - WANTED.solutions s.r.o._</sub></sup>
 
 output:
   file: "README.md"
@@ -60,4 +101,3 @@ output:
     <!-- BEGIN_TF_DOCS -->
     {{ .Content }}
     <!-- END_TF_DOCS -->
-    
