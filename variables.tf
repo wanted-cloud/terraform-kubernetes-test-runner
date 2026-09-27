@@ -251,3 +251,9 @@ variable "deadline_grace_seconds" {
   type        = number
   default     = 120
 }
+
+variable "automount_service_account_token" {
+  description = "Mount the Kubernetes API token into the runner pod. False by default: a test runner never calls the Kubernetes API. Note the pod-level setting overrides the ServiceAccount's, so setting it on the account alone does nothing."
+  type        = bool
+  default     = false
+}

@@ -157,6 +157,14 @@ object({
 
 Default: `{}`
 
+### <a name="input_automount_service_account_token"></a> [automount\_service\_account\_token](#input\_automount\_service\_account\_token)
+
+Description: Mount the Kubernetes API token into the runner pod. False by default: a test runner never calls the Kubernetes API. Note the pod-level setting overrides the ServiceAccount's, so setting it on the account alone does nothing.
+
+Type: `bool`
+
+Default: `false`
+
 ### <a name="input_backoff_limit"></a> [backoff\_limit](#input\_backoff\_limit)
 
 Description: Job retries. 0 by default because retrying a load test is wrong: it doubles the load applied to the target and yields a second contaminated result, and a threshold breach is a finding rather than a transient error.

@@ -70,6 +70,12 @@ resource "kubernetes_cron_job_v1" "this" {
             service_account_name = var.service_account_name
             restart_policy       = "Never"
 
+            # The POD-level setting wins over the ServiceAccount's, and the provider defaults
+            # it to true — so turning it off on the account alone silently mounts the API
+            # token anyway. A test runner never calls the Kubernetes API, and it is the least
+            # trusted workload in the cluster, so it gets no token.
+            automount_service_account_token = var.automount_service_account_token
+
             container {
               name              = "runner"
               image             = var.image
